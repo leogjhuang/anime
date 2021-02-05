@@ -57,30 +57,31 @@ def validate_input(prompt="Enter a valid input: ", type_=None, range_=None, min_
             return input_
 
 
-class AnimeList:
-    def __init__(self):
+class List:
+    def __init__(self, file_name):
+        self.file_name = file_name
         try:
-            with open("README.md", "r") as file:
-                anime_list = [anime for anime in file]
+            with open(self.file_name, "r") as file:
+                self.directory = [listing for listing in file]
         except FileNotFoundError:
-            anime_list = []
-        self.anime_list = anime_list
+            self.directory = []
 
-    def add(self, anime):
-        self.anime_list.append(anime)
+    def add(self, title, score):
+        self.directory.append((title, score))
 
-    def remove(self, anime):
-        self.anime_list.remove(anime)
+    def remove(self, title):
+        if title in [listing[0] for listing in self.directory]:
+            self.directory = [listing for listing in self.directory if listing[0] != title]
 
     def save(self):
-        with open("README.md", "w") as file:
-            file.write("\n".join(anime for anime in self.anime_list))
+        with open(self.file_name, "w") as file:
+            file.write("\n".join(listing for listing in self.directory))
 
-    def sort(self, rating_sort):
-        if rating_sort:
-            pass
+    def sort(self, score_sort):
+        if score_sort:
+            self.directory.sort(key=lambda listing: listing[1])
         else:
-            self.anime_list = sorted(self.anime_list, key=str.lower)
+            self.directory.sort(key=lambda listing: str.lower(listing[0]))
 
 
 if __name__ == "__main__":
