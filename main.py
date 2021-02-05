@@ -1,5 +1,5 @@
 # Check if an input meets a set of criteria; return validated input
-def validate_input(prompt="Enter a valid input: ", type_=None, default=None, range_=None, min_=None, max_=None):
+def validate_input(prompt="Enter a valid input: ", type_=None, range_=None, min_=None, max_=None, default=None):
     sequence = None
     if min_ is not None and max_ is not None and min_ > max_:
         raise ValueError("'min_' is greater than 'max_'")
@@ -55,3 +55,7 @@ def validate_input(prompt="Enter a valid input: ", type_=None, default=None, ran
             print(f"Input must be less than or equal to {max_}.")
         else:
             return input_
+
+
+if __name__ == "__main__":
+    pass
