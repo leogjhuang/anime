@@ -1,4 +1,7 @@
-# Check if an input meets a set of criteria; return validated input
+from urllib.request import urlopen
+
+
+# Check if an input meets a set of criteria; return the validated input
 def validate_input(prompt="Enter a valid input: ", type_=None, range_=None, min_=None, max_=None, default=None):
     sequence = None
     if min_ is not None and max_ is not None and min_ > max_:
@@ -57,6 +60,21 @@ def validate_input(prompt="Enter a valid input: ", type_=None, range_=None, min_
             return input_
 
 
+# Parse the HTML code for a MyAnimeList listing given its URL; return the English title of the entry
+def fetch_anime_title(url):
+    tag = 'class="dark_text">English:</span> '
+    with urlopen(url) as html:
+        data = html.read().decode('utf-8')
+        title_start = data.find(tag) + len(tag)
+        if title_start == -1:
+            return "Anime not found."
+        else:
+            title_end = data.find("\n", title_start)
+            if title_end == -1:
+                return "Anime not found."
+        return data[title_start:title_end]
+
+
 class List:
     def __init__(self, file_name):
         self.file_name = file_name
@@ -66,8 +84,8 @@ class List:
         except FileNotFoundError:
             self.directory = []
 
-    def add(self, title, score):
-        self.directory.append((title, score))
+    def add(self, title, score, url):
+        self.directory.append((title, score, url))
 
     def remove(self, title):
         if title in [listing[0] for listing in self.directory]:
@@ -75,10 +93,10 @@ class List:
 
     def save(self):
         with open(self.file_name, "w") as file:
-            file.write("\n".join(listing for listing in self.directory))
+            file.write("\n".join(f"[{listing[0]}]({listing[2]})" for listing in self.directory))
 
-    def sort(self, score_sort):
-        if score_sort:
+    def sort(self, sort_by_score):
+        if sort_by_score:
             self.directory.sort(key=lambda listing: listing[1])
         else:
             self.directory.sort(key=lambda listing: str.lower(listing[0]))
