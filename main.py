@@ -60,19 +60,41 @@ def validate_input(prompt="Enter a valid input: ", type_=None, range_=None, min_
             return input_
 
 
-# Parse the HTML code for a MyAnimeList entry given its URL; return the English title of the entry
-def fetch_anime_title(url):
-    tag = 'class="dark_text">English:</span> '
+# Parse the HTML code for a MyAnimeList entry given its URL; return the English title and MAL score of the entry
+def fetch_anime_info(url):
+    title_tag = 'class="dark_text">English:</span> '
+    title_endpoint = "\n"
+    title_unknown = "anime title unknown"
+    score_tag = 'class="score-label score-'
+    score_tag_modifiable = 'n">'
+    score_endpoint = "<"
+    score_unknown = -1
     with urlopen(url) as html:
-        data = html.read().decode('utf-8')
-        title_start = data.find(tag) + len(tag)
+        data = html.read().decode("utf-8")
+        title_start = data.find(title_tag)
         if title_start == -1:
-            return "Anime not found."
+            title = title_unknown
         else:
-            title_end = data.find("\n", title_start)
-            if title_end == -1:
-                return "Anime not found."
-        return data[title_start:title_end]
+            title_start += len(title_tag)
+            title_stop = data.find(title_endpoint, title_start)
+            if title_stop == -1:
+                title = title_unknown
+            else:
+                title = data[title_start:title_stop]
+        score_start = data.find(score_tag)
+        if score_start == -1:
+            score = score_unknown
+        else:
+            score_start += len(score_tag) + len(score_tag_modifiable)
+            score_stop = data.find(score_endpoint, score_start)
+            if score_stop == -1:
+                score = score_unknown
+            else:
+                try:
+                    score = float(data[score_start:score_stop])
+                except ValueError:
+                    score = score_unknown
+    return title, score
 
 
 class List:
