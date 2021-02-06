@@ -1,4 +1,5 @@
 from urllib.request import urlopen
+import re
 
 
 # Check if an input meets a set of criteria; return the validated input
@@ -64,7 +65,9 @@ def validate_input(prompt="Enter a valid input: ", type_=None, range_=None, min_
 def fetch_anime_info(url):
     title_tag = 'class="dark_text">English:</span> '
     title_endpoint = "\n"
-    title_unknown = "anime title unknown"
+    title_tag_alternative = '<meta property="og:title" content="'
+    title_endpoint_alternative = '"'
+    title_unknown = "entry title unknown"
     score_tag = 'class="score-label score-'
     score_tag_modifiable = 'n">'
     score_endpoint = "<"
@@ -73,7 +76,16 @@ def fetch_anime_info(url):
         data = html.read().decode("utf-8")
         title_start = data.find(title_tag)
         if title_start == -1:
-            title = title_unknown
+            title_start = data.find(title_tag_alternative)
+            if title_start == -1:
+                title = title_unknown
+            else:
+                title_start += len(title_tag_alternative)
+                title_stop = data.find(title_endpoint_alternative, title_start)
+                if title_stop == -1:
+                    title = title_unknown
+                else:
+                    title = data[title_start:title_stop]
         else:
             title_start += len(title_tag)
             title_stop = data.find(title_endpoint, title_start)
@@ -125,4 +137,25 @@ class List:
 
 
 if __name__ == "__main__":
-    pass
+    site_tag = 'class="hoverinfo_trigger fl-l ml12 mr8" href="'
+    site_endpoint = '"'
+    site_unknown = "entry site unknown"
+    with urlopen("https://myanimelist.net/topanime.php") as site_html:
+        site_data = site_html.read().decode("utf-8")
+        top_50_start = [site.start() for site in re.finditer(site_tag, site_data)]
+        for site_start in top_50_start:
+            if site_start == -1:
+                print(site_unknown)
+            else:
+                site_start += len(site_tag)
+                site_stop = site_data.find(site_endpoint, site_start)
+                if site_stop == -1:
+                    print(site_unknown)
+                else:
+                    site = site_data[site_start:site_stop]
+                    if site[-1] == "°":
+                        site = site[:-1]
+                    entry_title, entry_score = fetch_anime_info(site)
+                    entry_title = entry_title.replace("&#039;", "'")
+                    entry_score = format(entry_score, ".2f")
+                    print(f"{entry_title}, {entry_score}")
