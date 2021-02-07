@@ -61,52 +61,62 @@ def validate_input(prompt="Enter a valid input: ", type_=None, range_=None, min_
             return input_
 
 
+# Find an element in HTML code given its start and end tag; return the element content
+def find_html_element(html, start_tag, end_tag):
+    title_start = html.find(start_tag)
+    title_end = html.find(end_tag, title_start + len(start_tag))
+    if title_start == -1 or title_end == -1:
+        return False
+    return html[title_start + len(start_tag):title_end]
+
+
 # Parse the HTML code for a MyAnimeList entry given its URL; return the English title and MAL score of the entry
 def fetch_anime_info(url):
-    title_tag = 'class="dark_text">English:</span> '
-    title_endpoint = "\n"
-    title_tag_alternative = '<meta property="og:title" content="'
-    title_endpoint_alternative = '"'
+    title_jap_start = '<h1 class="title-name h1_bold_none"><strong>'
+    title_jap_end = '</strong>'
+    title_eng_start = '<p class="title-english title-inherit">'
+    title_eng_end = '</p>'
     title_unknown = "entry title unknown"
-    score_tag = 'class="score-label score-'
-    score_tag_modifiable = 'n">'
-    score_endpoint = "<"
-    score_unknown = -1
+    # Actual score tag is '<span itemprop="ratingValue" class="score-label score-n">', where n is 0-9
+    score_start = '<span itemprop="ratingValue" class="score-label score-'
+    score_end = '</span>'
+    score_unknown = 0
     with urlopen(url) as html:
-        data = html.read().decode("utf-8")
-        title_start = data.find(title_tag)
-        if title_start == -1:
-            title_start = data.find(title_tag_alternative)
-            if title_start == -1:
-                title = title_unknown
-            else:
-                title_start += len(title_tag_alternative)
-                title_stop = data.find(title_endpoint_alternative, title_start)
-                if title_stop == -1:
-                    title = title_unknown
-                else:
-                    title = data[title_start:title_stop]
-        else:
-            title_start += len(title_tag)
-            title_stop = data.find(title_endpoint, title_start)
-            if title_stop == -1:
-                title = title_unknown
-            else:
-                title = data[title_start:title_stop]
-        score_start = data.find(score_tag)
-        if score_start == -1:
+        parsed_html = html.read().decode("utf-8")
+        title_jap = find_html_element(parsed_html, title_jap_start, title_jap_end)
+        if not title_jap:
+            title_jap = title_unknown
+        title_eng = find_html_element(parsed_html, title_eng_start, title_eng_end)
+        if not title_eng:
+            title_eng = title_jap
+        score = find_html_element(parsed_html, score_start, score_end)
+        if not score:
             score = score_unknown
         else:
-            score_start += len(score_tag) + len(score_tag_modifiable)
-            score_stop = data.find(score_endpoint, score_start)
-            if score_stop == -1:
-                score = score_unknown
+            score = float(score[3:])
+    return title_jap, title_eng, score
+
+
+# Generate top 50 anime entries currently on MyAnimeList
+def print_top_50():
+    site_start = '<a class="hoverinfo_trigger fl-l ml12 mr8" href="'
+    site_end = '"'
+    site_unknown = "entry site unknown"
+    with urlopen("https://myanimelist.net/topanime.php") as site_html:
+        site_parsed_html = site_html.read().decode("utf-8")
+        top_50 = [site.start() for site in re.finditer(site_start, site_parsed_html)]
+        for entry in top_50:
+            site = find_html_element(site_parsed_html[entry:], site_start, site_end)
+            if not site:
+                print(site_unknown)
             else:
-                try:
-                    score = float(data[score_start:score_stop])
-                except ValueError:
-                    score = score_unknown
-    return title, score
+                if site[-1] == "°":
+                    site = site[:-1]
+                entry_title_jap, entry_title_eng, entry_score = fetch_anime_info(site)
+                entry_title_jap = entry_title_jap.replace("&#039;", "'")
+                entry_title_eng = entry_title_eng.replace("&#039;", "'")
+                entry_score = format(entry_score, ".2f")
+                print(f"{entry_title_jap} ({entry_title_eng}), {entry_score}")
 
 
 class List:
@@ -137,25 +147,19 @@ class List:
 
 
 if __name__ == "__main__":
-    site_tag = 'class="hoverinfo_trigger fl-l ml12 mr8" href="'
-    site_endpoint = '"'
-    site_unknown = "entry site unknown"
-    with urlopen("https://myanimelist.net/topanime.php") as site_html:
-        site_data = site_html.read().decode("utf-8")
-        top_50_start = [site.start() for site in re.finditer(site_tag, site_data)]
-        for site_start in top_50_start:
-            if site_start == -1:
-                print(site_unknown)
-            else:
-                site_start += len(site_tag)
-                site_stop = site_data.find(site_endpoint, site_start)
-                if site_stop == -1:
-                    print(site_unknown)
-                else:
-                    site = site_data[site_start:site_stop]
-                    if site[-1] == "°":
-                        site = site[:-1]
-                    entry_title, entry_score = fetch_anime_info(site)
-                    entry_title = entry_title.replace("&#039;", "'")
-                    entry_score = format(entry_score, ".2f")
-                    print(f"{entry_title}, {entry_score}")
+    while True:
+        print("[0] Exit")
+        print("[1] Generate the current top 50 anime entries on MyAnimeList")
+        print("[2] Generate the information for a MyAnimeList entry")
+        selection = validate_input("Please make a selection: ", int, [0, 1, 2])
+        print("\n")
+        if selection == 1:
+            print_top_50()
+            print("\n")
+        elif selection == 2:
+            url = validate_input("Please enter a MyAnimeList link (default is https://myanimelist.net/anime/40591): ",
+                                 str, default="https://myanimelist.net/anime/40591")
+            title_jap, title_eng, score = fetch_anime_info(url)
+            print(f"{title_jap} ({title_eng}), {score}\n")
+        else:
+            break
